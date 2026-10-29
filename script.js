@@ -4,7 +4,7 @@ const POLLUTANT_SCORE = 10;
 const DIFFICULTY_SETTINGS = {
   easy: { cleanDamage: [20, 30], pollutantDamage: [5, 7], enemyHealth: 70, enemyName : "Pollutagent", waveSize: 10, interval: 600 },
   normal: { cleanDamage: [15, 25], pollutantDamage: [8, 12], enemyHealth: 100, enemyName : "Pollutagent", waveSize: 13, interval: 550 },
-  hard: { cleanDamage: [10, 20], pollutantDamage: [13, 17], enemyHealth: 200, enemyName : "Kontamination King", waveSize: 20, interval: 500 }
+  hard: { cleanDamage: [11, 20], pollutantDamage: [13, 17], enemyHealth: 200, enemyName : "Kontamination King", waveSize: 20, interval: 500 }
 };
 const enemy = { health: MAX_HEALTH, name : "Pollutagent" };
 
