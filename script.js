@@ -1,9 +1,16 @@
 const MAX_HEALTH = 100;
+let difficulty = null;
 const POLLUTANT_SCORE = 10;
-const enemy = { health: MAX_HEALTH };
+const DIFFICULTY_SETTINGS = {
+  easy: { cleanDamage: [20, 30], pollutantDamage: [5, 7], enemyHealth: 70, enemyName : "Pollutagent", waveSize: 10, interval: 600 },
+  normal: { cleanDamage: [15, 25], pollutantDamage: [8, 12], enemyHealth: 100, enemyName : "Pollutagent", waveSize: 13, interval: 550 },
+  hard: { cleanDamage: [10, 20], pollutantDamage: [13, 17], enemyHealth: 200, enemyName : "Kontamination King", waveSize: 20, interval: 500 }
+};
+const enemy = { health: MAX_HEALTH, name : "Pollutagent" };
+
 const player = { health: MAX_HEALTH };
 let score = 0;
-let turn = 'player';
+let turn = 'setup';
 let attackTimeout;
 let shmupFrame;
 let shmupLastTime = 0;
@@ -16,9 +23,8 @@ let shmupActive = false;
 let confettiFrame;
 let confettiPieces = [];
 let confettiLastTime = 0;
-const SHMUP_WAVE_SIZE = 10;
-const POLLUTANT_SPAWN_INTERVAL = 550;
-const POLLUTANT_DAMAGE = 10;
+let SHMUP_WAVE_SIZE = 10;
+let POLLUTANT_SPAWN_INTERVAL = 550;
 const CONFETTI_COLORS = ['#1474bd', '#2e9df7', '#ffc907', '#f16061', '#55b884'];
 const controls = { left: false, right: false, fire: false };
 const ship = { x: 280, y: 226, width: 38, height: 38, speed: 260 };
@@ -27,6 +33,9 @@ const aimTarget = { x: 280, y: 100 };
 const cleanButton = document.getElementById('clean-action');
 const recoverButton = document.getElementById('recover-action');
 const resetButton = document.getElementById('reset-game');
+const difficultySelect = document.getElementById('difficulty-select');
+const enemyImage = document.getElementById('enemy-image');
+const enemyName = document.getElementById('enemy-name');
 const scoreValue = document.getElementById('score-value');
 const turnIndicator = document.getElementById('turn-indicator');
 const battlefield = document.querySelector('.battlefield');
@@ -37,6 +46,9 @@ const minigameHint = document.getElementById('minigame-hint');
 const battleMessage = document.getElementById('battle-message');
 const shmupGame = document.getElementById('shmup-game');
 const canvas = document.getElementById('shmup-canvas');
+const canvasMount = document.createComment('shmup canvas mount');
+canvas.before(canvasMount);
+canvas.remove();
 const context = canvas.getContext('2d');
 context.imageSmoothingEnabled = false;
 const confettiCanvas = document.getElementById('confetti-canvas');
@@ -48,6 +60,16 @@ const pollutantImages = ['img/Pollutant1.png', 'img/Pollutant2.png', 'img/Pollut
 });
 const shipImage = new Image();
 shipImage.src = 'img/ship.png';
+const hitSound = new Audio('sounds/Hit_Hurt.wav');
+const explosionSound = new Audio('sounds/Explosion6.wav');
+[hitSound, explosionSound].forEach((sound) => { sound.preload = 'auto'; });
+
+function playSound(sound) {
+  const playback = sound.cloneNode();
+  playback.play().catch((error) => {
+    console.error('Unable to play sound effect.', error);
+  });
+}
 
 function rand_range(lower,upper) {
   return Math.floor(Math.random() * (upper - lower + 1)) + lower;
@@ -57,10 +79,12 @@ function updateHealth(combatant, fillId, valueId) {
   const fill = document.getElementById(fillId);
   const healthValue = document.getElementById(valueId);
   const track = fill.parentElement;
-  const percentage = (combatant.health / MAX_HEALTH) * 100;
+  const maxHealth = combatant === enemy ? DIFFICULTY_SETTINGS[difficulty].enemyHealth : MAX_HEALTH;
+  const percentage = (combatant.health / maxHealth) * 100;
 
   fill.style.width = `${percentage}%`;
-  healthValue.textContent = `${combatant.health} / ${MAX_HEALTH}`;
+  healthValue.textContent = `${combatant.health} / ${maxHealth}`;
+  track.setAttribute('aria-valuemax', maxHealth);
   track.setAttribute('aria-valuenow', combatant.health);
 }
 
@@ -69,12 +93,24 @@ function updateScore() {
 }
 
 function updateActions() {
-  const playerTurn = turn === 'player';
+  const playerTurn = turn === 'player' && difficulty !== null;
   cleanButton.disabled = !playerTurn;
   recoverButton.disabled = !playerTurn || player.health === MAX_HEALTH;
+  resetButton.disabled = difficulty === null;
   turnIndicator.classList.toggle('is-enemy-turn', turn === 'enemy');
   turnIndicator.classList.toggle('is-finished', turn === 'won' || turn === 'lost');
-  turnIndicator.textContent = turn === 'player' ? 'Your turn' : turn === 'enemy' ? 'Enemy turn' : turn === 'won' ? 'Encounter won' : 'Encounter lost';
+  turnIndicator.textContent = turn === 'setup' ? 'Choose a mode' : turn === 'player' ? 'Your turn' : turn === 'enemy' ? 'Enemy turn' : turn === 'won' ? 'Encounter won' : 'Encounter lost';
+}
+
+function showSetup() {
+  turn = 'setup';
+  stopShmup();
+  battlefield.classList.remove('is-under-attack');
+  minigameArea.classList.remove('is-attack');
+  shmupGame.hidden = true;
+  setMinigame('Choose a mode', 'Select a difficulty to begin.', 'Choose Easy, Normal, or Hard.');
+  battleMessage.textContent = 'Choose a difficulty to start .';
+  updateActions();
 }
 
 function setMinigame(kicker, message, hint) {
@@ -89,7 +125,7 @@ function showPlayerTurn(message) {
   battlefield.classList.remove('is-under-attack');
   minigameArea.classList.remove('is-attack');
   shmupGame.hidden = true;
-  setMinigame('Pollutagent appears!', 'Battle Start.', 'Choose an action below to begin.');
+  setMinigame(`${enemy.name} appears!`, 'Battle Start.', 'Choose an action below to begin.');
   battleMessage.textContent = message;
   updateActions();
 }
@@ -106,7 +142,7 @@ function finishGame(victory) {
   battlefield.classList.remove('is-under-attack');
   minigameArea.classList.remove('is-attack');
   shmupGame.hidden = true;
-  setMinigame(victory ? 'PATH CLEARED' : 'KEEP GOING', victory ? 'Pollutagent defeated.' : 'You were defeated.', victory ? 'However more await.' : 'try again.');
+  setMinigame(victory ? 'PATH CLEARED' : 'KEEP GOING', victory ? `${enemy.name} defeated.` : 'You were defeated.', victory ? 'However more await.' : 'try again.');
   battleMessage.textContent = victory ? 'The way forward is clear.' : 'Your health ran out this time.';
   updateActions();
 }
@@ -125,13 +161,14 @@ function beginEnemyTurn() {
 function passTurn() {
   turn = 'enemy';
   updateActions();
-  setMinigame('ENEMY TURN', 'Pollutagent is preparing an attack.', 'Defend the water.');
+  setMinigame('ENEMY TURN', 'Enemy is preparing an attack.', 'Defend the water.');
   battleMessage.textContent = 'The enemy is taking its turn.';
   attackTimeout = setTimeout(beginEnemyTurn, 650);
 }
 
 function startShmup() {
   stopShmup();
+  canvasMount.after(canvas);
   shmupActive = true;
   shmupLastTime = 0;
   nextPollutantTime = 0;
@@ -151,6 +188,7 @@ function stopShmup() {
   shmupActive = false;
   if (shmupFrame) cancelAnimationFrame(shmupFrame);
   shmupFrame = undefined;
+  canvas.remove();
   resetControls();
 }
 
@@ -170,9 +208,13 @@ function updateShmup(time) {
       x: 22 + Math.random() * (canvas.width - 44),
       y: -20,
       size: 28,
-      speed: 78 + Math.random() * 38,
+      speedy: 78 + Math.random() * 38,
+      speedx : 0,
       image: pollutantImages[Math.floor(Math.random() * pollutantImages.length)]
     });
+    if (difficulty == "hard") {
+      pollutants[pollutants.length - 1].speedx = (Math.random() - 0.5) * 50;
+    }
     spawnedPollutants += 1;
     nextPollutantTime = time + POLLUTANT_SPAWN_INTERVAL;
   }
@@ -186,7 +228,7 @@ function updateShmup(time) {
     fireShot(aimTarget.x, aimTarget.y);
   }
 
-  pollutants.forEach((pollutant) => { pollutant.y += pollutant.speed * elapsed; });
+  pollutants.forEach((pollutant) => { pollutant.y += pollutant.speedy * elapsed; pollutant.x += pollutant.speedx * elapsed; });
   shots.forEach((shot) => {
     shot.x += shot.velocityX * elapsed;
     shot.y += shot.velocityY * elapsed;
@@ -199,7 +241,7 @@ function updateShmup(time) {
   });
   for (const pollutant of landedPollutants) {
     if (turn !== 'enemy') break;
-    damagePlayer(POLLUTANT_DAMAGE);
+    damagePlayer();
   }
   if (turn !== 'enemy') return;
 
@@ -228,6 +270,7 @@ function resolveCollisions() {
       remainingShots.push(shot);
     } else {
       pollutants.splice(hitIndex, 1);
+      playSound(explosionSound);
       pollutantsShot += 1;
     }
   });
@@ -261,8 +304,10 @@ function fireShot(targetX, targetY) {
   fireCooldown = 0.22;
 }
 
-function damagePlayer(amount) {
-  let randomized_amount = rand_range(amount - 2, amount + 2);
+function damagePlayer() {
+  const [minimumDamage, maximumDamage] = DIFFICULTY_SETTINGS[difficulty].pollutantDamage;
+  const randomized_amount = rand_range(minimumDamage, maximumDamage);
+  playSound(hitSound);
   player.health = Math.max(0, player.health - randomized_amount);
   score -= 10;
   updateScore();
@@ -336,7 +381,8 @@ function drawShmup() {
 function clean() {
   if (turn !== 'player') return;
 
-  const damage = rand_range(15,25);
+  const [minimumDamage, maximumDamage] = DIFFICULTY_SETTINGS[difficulty].cleanDamage;
+  const damage = rand_range(minimumDamage, maximumDamage);
   enemy.health = Math.max(0, enemy.health - damage);
   updateHealth(enemy, 'enemy-health', 'enemy-hp-value');
   if (enemy.health === 0) {
@@ -344,7 +390,7 @@ function clean() {
     return;
   }
 
-  battleMessage.textContent = `You cleanead ${damage} points of the Pollutagent.`;
+  battleMessage.textContent = `You cleanead ${damage} points of the ${enemy.name}.`;
   passTurn();
 }
 
@@ -360,16 +406,23 @@ function recover() {
 }
 
 function resetGame() {
+  if (difficulty === null) return;
+
   clearTimeout(attackTimeout);
   stopShmup();
   stopConfetti();
   score = 0;
   updateScore();
-  enemy.health = MAX_HEALTH;
+  enemy.health = DIFFICULTY_SETTINGS[difficulty].enemyHealth;
+  enemy.name = DIFFICULTY_SETTINGS[difficulty].enemyName;
+  enemyImage.src = difficulty === 'hard' ? 'img/King kontamination.png' : 'img/enemy.png';
+  enemyName.textContent = enemy.name;
+  SHMUP_WAVE_SIZE = DIFFICULTY_SETTINGS[difficulty].waveSize;
+  POLLUTANT_SPAWN_INTERVAL = DIFFICULTY_SETTINGS[difficulty].interval;
   player.health = MAX_HEALTH;
   updateHealth(enemy, 'enemy-health', 'enemy-hp-value');
   updateHealth(player, 'player-health', 'player-hp-value');
-  showPlayerTurn('Pollutagent appears.');
+  showPlayerTurn(`${enemy.name} appears.`);
 }
 
 function startConfetti() {
@@ -426,6 +479,11 @@ function updateConfetti(time) {
 cleanButton.addEventListener('click', clean);
 recoverButton.addEventListener('click', recover);
 resetButton.addEventListener('click', resetGame);
+difficultySelect.addEventListener('change', () => {
+  if (!difficultySelect.value) return;
+  difficulty = difficultySelect.value;
+  resetGame();
+});
 canvas.addEventListener('pointermove', (event) => {
   if (!shmupActive) return;
   const position = getCanvasPosition(event);
@@ -467,4 +525,4 @@ document.querySelectorAll('.shmup-control').forEach((button) => {
   button.addEventListener('pointercancel', () => { controls[control] = false; });
   button.addEventListener('lostpointercapture', () => { controls[control] = false; });
 });
-updateActions();
+showSetup();

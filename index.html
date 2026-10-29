@@ -20,7 +20,7 @@
           <p class="eyebrow">A clean water adventure</p>
           <h1 id="game-title">Defeat the Pollutagent.</h1>
         </div>
-        <p class="turn-indicator" id="turn-indicator" aria-live="polite">Your turn</p>
+        <p class="turn-indicator" id="turn-indicator" aria-live="polite">Choose a mode</p>
       </div>
 
       <div class="battlefield" aria-label="Battle arena">
@@ -31,20 +31,20 @@
         </div>
         <section class="combatant combatant--enemy" aria-label="Enemy">
           <div class="combatant-info">
-            <div class="combatant-name"><span>01</span> Pollutagent</div>
+            <div class="combatant-name"><span>01</span> <span id="enemy-name">Pollutagent</span></div>
             <div class="health-label"><span>HEALTH</span><span id="enemy-hp-value">100 / 100</span></div>
             <div class="health-track" role="progressbar" aria-label="Enemy health" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
               <div class="health-fill health-fill--enemy" id="enemy-health"></div>
             </div>
           </div>
-          <div class="portrait portrait--enemy"><img src="img/enemy.png" alt=""></div>
+          <div class="portrait portrait--enemy"><img id="enemy-image" src="img/enemy.png" alt=""></div>
         </section>
 
         <section class="minigame-area" id="minigame-area" aria-label="Enemy attack minigame" aria-live="polite">
           <div class="minigame-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-          <p class="minigame-kicker" id="minigame-kicker">Pollutagent appears!</p>
-          <p class="minigame-message" id="minigame-message">Battle start.</p>
-          <p class="minigame-hint" id="minigame-hint">Choose an action below to begin.</p>
+          <p class="minigame-kicker" id="minigame-kicker">Choose your mode</p>
+          <p class="minigame-message" id="minigame-message">Select a difficulty to begin.</p>
+          <p class="minigame-hint" id="minigame-hint">Choose Easy, Normal, or Hard below.</p>
           <div class="shmup-game" id="shmup-game" hidden>
             <canvas class="shmup-canvas" id="shmup-canvas" width="560" height="270" aria-label="Aim with your mouse or touch and click to shoot the pollutants."></canvas>
             <div class="shmup-controls" aria-label="Ship controls">
@@ -74,7 +74,17 @@
             <p class="eyebrow">Your move</p>
             <h2>Choose an action</h2>
           </div>
-          <p id="battle-message" class="battle-message" aria-live="polite">The Pollutagent is preparing.
+          <p id="battle-message" class="battle-message" aria-live="polite">Choose a difficulty to start the encounter.</p>
+        </div>
+        <label class="difficulty-control" for="difficulty-select">
+          Difficulty
+          <select id="difficulty-select" name="difficulty">
+            <option value="" selected disabled>Choose a mode</option>
+            <option value="easy">Easy</option>
+            <option value="normal">Normal</option>
+            <option value="hard">Hard</option>
+          </select>
+        </label>
         <div class="action-buttons">
           <button class="action-button action-button--clean" id="clean-action" type="button">
             <span class="action-mark" aria-hidden="true">01</span>
@@ -90,7 +100,7 @@
         </div>
       </section>
     </section>
-    <footer class="site-footer"><span>Support Charity Water today</span><span>CHARITY: WATER FIELD NOTES</span></footer>
+    <footer class="site-footer"><a href="https://www.charitywater.org/" target="_blank" rel="noopener noreferrer">Support Charity Water today</a><span>CHARITY: WATER FIELD NOTES</span></footer>
   </main>
   <canvas class="confetti-canvas" id="confetti-canvas" aria-hidden="true"></canvas>
   <script src="script.js"></script>

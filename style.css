@@ -32,7 +32,7 @@ body {
   background-color: #f2f7f2;
   background-image: radial-gradient(#d6e5dc 0.8px, transparent 0.8px);
   background-size: 18px 18px;
-  font-family: "Avenir Next", Avenir, "Trebuchet MS", sans-serif;
+  font-family: "Proxima Nova", Avenir, sans-serif;
 }
 
 button {
@@ -80,7 +80,7 @@ button {
 .health-label,
 .minigame-kicker,
 .site-footer,
-.combatant-name span {
+.combatant-name > span:first-child {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -260,7 +260,7 @@ h1 {
   font-weight: 800;
 }
 
-.combatant-name span {
+.combatant-name > span:first-child {
   color: var(--muted);
   font-size: 9px;
 }
@@ -470,6 +470,26 @@ h2 {
   text-align: right;
 }
 
+.difficulty-control {
+  display: flex;
+  width: fit-content;
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.difficulty-control select {
+  padding: 7px 28px 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--ink);
+  background-color: white;
+  font: inherit;
+}
+
 .action-buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -557,6 +577,11 @@ h2 {
   color: #71827e;
   font-size: 9px;
   letter-spacing: 0.8px;
+}
+
+.site-footer a {
+  color: inherit;
+  text-underline-offset: 3px;
 }
 
 [hidden] {
